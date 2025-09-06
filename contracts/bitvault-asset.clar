@@ -270,3 +270,63 @@
     (ok true)
   )
 )
+
+;; Updates compliance status for regulatory management
+(define-public (set-compliance-status
+    (asset-id uint)
+    (user principal)
+    (is-approved bool)
+  )
+  (begin
+    ;; Administrative access control
+    (asserts! (is-valid-asset-id asset-id) ERR-INVALID-INPUT)
+    (asserts! (is-valid-principal user) ERR-INVALID-INPUT)
+    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-UNAUTHORIZED)
+
+    ;; Update compliance registry
+    (map-set compliance-status {
+      asset-id: asset-id,
+      user: user,
+    } {
+      is-approved: is-approved,
+      last-updated: stacks-block-height,
+      approved-by: tx-sender,
+    })
+
+    ;; Log compliance update for audit
+    (unwrap! (log-event u"COMPLIANCE_UPDATE" asset-id user) ERR-EVENT-LOGGING)
+
+    (ok is-approved)
+  )
+)
+
+;; READ-ONLY QUERY FUNCTIONS
+
+;; Retrieves comprehensive asset details
+(define-read-only (get-asset-details (asset-id uint))
+  (map-get? asset-registry { asset-id: asset-id })
+)
+
+;; Returns fractional ownership balance for specific owner
+(define-read-only (get-owner-shares
+    (asset-id uint)
+    (owner principal)
+  )
+  (ok (get-shares asset-id owner))
+)
+
+;; Retrieves compliance status and history
+(define-read-only (get-compliance-details
+    (asset-id uint)
+    (user principal)
+  )
+  (map-get? compliance-status {
+    asset-id: asset-id,
+    user: user,
+  })
+)
+
+;; Accesses immutable event log for audit purposes
+(define-read-only (get-event (event-id uint))
+  (map-get? events { event-id: event-id })
+)
