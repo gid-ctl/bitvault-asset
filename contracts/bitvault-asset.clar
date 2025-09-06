@@ -95,3 +95,104 @@
     timestamp: uint,
   }
 )
+
+;; PRIVATE UTILITY FUNCTIONS
+
+;; Event logging system for comprehensive audit trails
+(define-private (log-event
+    (event-type (string-utf8 24))
+    (asset-id uint)
+    (principal1 principal)
+  )
+  (begin
+    (let ((event-id (+ (var-get last-event-id) u1)))
+      (map-set events { event-id: event-id } {
+        event-type: event-type,
+        asset-id: asset-id,
+        principal1: principal1,
+        timestamp: stacks-block-height,
+      })
+      (var-set last-event-id event-id)
+      (ok event-id)
+    )
+  )
+)
+
+;; INPUT VALIDATION FUNCTIONS
+
+;; Validates metadata URI format and length constraints
+(define-private (is-valid-metadata-uri (uri (string-utf8 256)))
+  (and
+    (> (len uri) u0)
+    (<= (len uri) u256)
+    (> (len uri) u5)
+  )
+)
+
+;; Validates asset ID exists within system bounds
+(define-private (is-valid-asset-id (asset-id uint))
+  (and
+    (> asset-id u0)
+    (< asset-id (var-get next-asset-id))
+  )
+)
+
+;; Validates principal addresses for security compliance
+(define-private (is-valid-principal (user principal))
+  (and
+    (not (is-eq user CONTRACT-OWNER))
+    (not (is-eq user (as-contract tx-sender)))
+  )
+)
+
+;; Compliance verification - checks regulatory approval status
+(define-private (is-compliance-check-passed
+    (asset-id uint)
+    (user principal)
+  )
+  (match (map-get? compliance-status {
+    asset-id: asset-id,
+    user: user,
+  })
+    compliance-data (get is-approved compliance-data)
+    false
+  )
+)
+
+;; SHARE MANAGEMENT UTILITIES
+
+;; Retrieves current share balance for asset-owner pair
+(define-private (get-shares
+    (asset-id uint)
+    (owner principal)
+  )
+  (default-to u0
+    (get shares
+      (map-get? share-ownership {
+        asset-id: asset-id,
+        owner: owner,
+      })
+    ))
+)
+
+;; Updates share balance in ownership registry
+(define-private (set-shares
+    (asset-id uint)
+    (owner principal)
+    (amount uint)
+  )
+  (map-set share-ownership {
+    asset-id: asset-id,
+    owner: owner,
+  } { shares: amount }
+  )
+)
+
+;; PUBLIC PROTOCOL FUNCTIONS
+
+;; Creates new tokenized asset with fractional ownership capabilities
+(define-public (create-asset
+    (total-supply uint)
+    (fractional-shares uint)
+    (metadata-uri (string-utf8 256))
+  )
