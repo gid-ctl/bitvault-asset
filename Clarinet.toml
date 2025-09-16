@@ -8,7 +8,7 @@ requirements = []
 [contracts.bitvault-asset]
 path = 'contracts/bitvault-asset.clar'
 clarity_version = 3
-epoch = 'latest'
+epoch = 3.0
 [repl.analysis]
 passes = ['check_checker']
 
